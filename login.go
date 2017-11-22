@@ -59,6 +59,13 @@ func loginPost(w http.ResponseWriter, r *http.Request) {
 	respondWithJSON(w, http.StatusOK, map[string]string{"token": tokenString})
 }
 
+// loginOptions returns the allowed options
+func loginOptions(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept")
+	w.Header().Set("Access-Control-Allow-Methods", "POST")
+}
+
 func (lr *LoginRequest) validateCredentials() bool {
 	if lr.Username != validUser {
 		return false
