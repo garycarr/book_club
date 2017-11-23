@@ -4,21 +4,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"time"
 
-	jwt "github.com/dgrijalva/jwt-go"
 	"golang.org/x/crypto/bcrypt"
 )
 
-// loginRequest is the information needed to make a login
+// loginRequest is the data needed to make a login
 type loginRequest struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
-}
-
-type customJWTClaims struct {
-	Username string `json:"username"`
-	jwt.StandardClaims
 }
 
 // loginPost returns a JSON token if the login was successful
@@ -46,22 +39,13 @@ func (a *app) loginPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// Create the JSON token as the login is valid
-	claims := &customJWTClaims{
-		StandardClaims: jwt.StandardClaims{
-			ExpiresAt: time.Now().Add(jwtExpiration).Unix(),
-			Issuer:    jwtIssuer,
-			IssuedAt:  time.Now().Unix(),
-			Id:        user.id,
-		},
-		Username: user.username,
-	}
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	tokenString, err := token.SignedString([]byte(jwtSecret))
+	jsonToken, err := a.createJSONToken(user)
 	if err != nil {
+		a.logrus.WithError(err).Error("Unable to create JSON token")
 		a.respondWithError(w, http.StatusInternalServerError, "Unable to create JSON token")
 		return
 	}
-	a.respondWithJSON(w, http.StatusOK, map[string]string{"token": tokenString})
+	a.respondWithJSON(w, http.StatusOK, map[string]string{"token": jsonToken})
 }
 
 // loginOptions returns the allowed options

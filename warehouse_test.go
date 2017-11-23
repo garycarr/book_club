@@ -43,7 +43,7 @@ func TestWarehouseCreateUser(t *testing.T) {
 		},
 	}
 	a := app{}
-	if err := a.loadConfiguration("config.json"); err != nil {
+	if err := a.loadConfiguration("test_config.json"); err != nil {
 		t.Fatal(err)
 	}
 	defer cleanUpUserData(t, &a)
@@ -67,7 +67,7 @@ func TestWarehouseCreateUser(t *testing.T) {
 
 func TestWarehouseCreateUserDuplicate(t *testing.T) {
 	a := app{}
-	if err := a.loadConfiguration("config.json"); err != nil {
+	if err := a.loadConfiguration("test_config.json"); err != nil {
 		t.Fatal(err)
 	}
 	defer cleanUpUserData(t, &a)
@@ -113,7 +113,7 @@ func TestWarehouseGetUserWithUsername(t *testing.T) {
 		},
 	}
 	a := app{}
-	if err := a.loadConfiguration("config.json"); err != nil {
+	if err := a.loadConfiguration("test_config.json"); err != nil {
 		t.Fatal(err)
 	}
 	defer cleanUpUserData(t, &a)

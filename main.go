@@ -10,7 +10,7 @@ const jwtExpiration = time.Duration(1 * time.Hour)
 
 func main() {
 	a := app{}
-	a.initialize()
+	a.initialize("config.json")
 	a.logrus.Info("Starting the app")
 	a.run()
 }

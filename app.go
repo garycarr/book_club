@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"time"
 
+	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
 	"github.com/sirupsen/logrus"
@@ -27,6 +29,11 @@ type config struct {
 	} `json:"database"`
 }
 
+type customJWTClaims struct {
+	Username string `json:"username"`
+	jwt.StandardClaims
+}
+
 func (a *app) run() {
 	a.logrus.Fatal(http.ListenAndServe(port, a.Router))
 }
@@ -37,10 +44,10 @@ func (a *app) openDB() (*sql.DB, error) {
 	return sql.Open("postgres", connectionString)
 }
 
-func (a *app) initialize() {
+func (a *app) initialize(configFile string) {
 	a.logrus = logrus.New()
 	a.logrus.Formatter = &logrus.JSONFormatter{}
-	err := a.loadConfiguration("config.json")
+	err := a.loadConfiguration(configFile)
 	if err != nil {
 		a.logrus.WithError(err).Fatal("Error loading config")
 	}
@@ -60,6 +67,9 @@ func (a *app) initialize() {
 func (a *app) initializeRoutes() {
 	a.Router.HandleFunc("/login", a.loginPost).Methods("POST")
 	a.Router.HandleFunc("/login", a.loginOptions).Methods("OPTIONS")
+
+	a.Router.HandleFunc("/user", a.userPost).Methods("POST")
+	a.Router.HandleFunc("/user", a.userOptions).Methods("OPTIONS")
 }
 
 func (a *app) respondWithError(w http.ResponseWriter, code int, message string) {
@@ -86,4 +96,23 @@ func (a *app) loadConfiguration(file string) error {
 		return err
 	}
 	return nil
+}
+
+func (a *app) createJSONToken(u *user) (string, error) {
+	// Create the JSON token as the login is valid
+	claims := &customJWTClaims{
+		StandardClaims: jwt.StandardClaims{
+			ExpiresAt: time.Now().Add(jwtExpiration).Unix(),
+			Issuer:    jwtIssuer,
+			IssuedAt:  time.Now().Unix(),
+			Id:        u.id,
+		},
+		Username: u.username,
+	}
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	tokenString, err := token.SignedString([]byte(jwtSecret))
+	if err != nil {
+		return "", err
+	}
+	return tokenString, nil
 }
