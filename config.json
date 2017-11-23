@@ -1,0 +1,8 @@
+{
+	"database": {
+		"db_name": "bookclub",
+		"host": "localhost",
+		"password": "password",
+		"username": "master"
+	}
+}

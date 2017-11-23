@@ -5,10 +5,10 @@ import (
 	"net/http/httptest"
 )
 
-func executeRequest(req *http.Request) *httptest.ResponseRecorder {
+func setupTest(req *http.Request) (*app, *httptest.ResponseRecorder) {
 	rr := httptest.NewRecorder()
 	a := app{}
+	a.loadConfiguration("config.json")
 	a.initialize()
-	a.Router.ServeHTTP(rr, req)
-	return rr
+	return &a, rr
 }
