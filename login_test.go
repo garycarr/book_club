@@ -95,11 +95,12 @@ func TestLoginPost(t *testing.T) {
 		a, responseRecorder := setupTest(req)
 		if td.expectedHTTPStatus == http.StatusOK {
 			// We need to put the user in the DB
-			td.expectedClaims.Id = testCreateUser(t, a, user{
+			createdUser := testCreateUser(t, a, user{
 				email:    "generic@email.com",
 				password: td.params["password"],
 				username: td.params["username"],
 			}, td.description)
+			td.expectedClaims.Id = createdUser.id
 		}
 		a.Router.ServeHTTP(responseRecorder, req)
 		if !assert.Equal(t, td.expectedHTTPStatus, responseRecorder.Code, td.description) {

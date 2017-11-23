@@ -4,17 +4,18 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
+	"github.com/sirupsen/logrus"
 )
 
 type app struct {
 	Router *mux.Router
 	conf   *config
+	logrus *logrus.Logger
 }
 
 type config struct {
@@ -27,7 +28,7 @@ type config struct {
 }
 
 func (a *app) run() {
-	log.Fatal(http.ListenAndServe(port, a.Router))
+	a.logrus.Fatal(http.ListenAndServe(port, a.Router))
 }
 
 func (a *app) openDB() (*sql.DB, error) {
@@ -37,18 +38,20 @@ func (a *app) openDB() (*sql.DB, error) {
 }
 
 func (a *app) initialize() {
+	a.logrus = logrus.New()
+	a.logrus.Formatter = &logrus.JSONFormatter{}
 	err := a.loadConfiguration("config.json")
 	if err != nil {
-		panic(err)
+		a.logrus.WithError(err).Fatal("Error loading config")
 	}
 
 	db, err := a.openDB()
 	defer db.Close()
 	if err != nil {
-		panic(err)
+		a.logrus.WithError(err).Fatal("Error opening DB")
 	}
 	if err = db.Ping(); err != nil {
-		panic(err)
+		a.logrus.Fatal(err)
 	}
 	a.Router = mux.NewRouter()
 	a.initializeRoutes()

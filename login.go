@@ -7,6 +7,7 @@ import (
 	"time"
 
 	jwt "github.com/dgrijalva/jwt-go"
+	"golang.org/x/crypto/bcrypt"
 )
 
 // loginRequest is the information needed to make a login
@@ -24,20 +25,24 @@ type customJWTClaims struct {
 func (a *app) loginPost(w http.ResponseWriter, r *http.Request) {
 	login := loginRequest{}
 	if err := json.NewDecoder(r.Body).Decode(&login); err != nil {
-		a.respondWithError(w, http.StatusBadRequest, fmt.Sprintf("Unable to decode request: %v", err))
+		a.logrus.WithError(err).Error("Unable to decode body")
+		a.respondWithError(w, http.StatusInternalServerError, fmt.Sprintf("Unable to decode request: %v", err))
 		return
 	}
 	if err := login.validateRequest(); err != nil {
+		a.logrus.WithError(err).Error("Missing validation parameters")
 		a.respondWithError(w, http.StatusBadRequest, fmt.Sprintf("Missing parameters: %v", err))
 		return
 	}
 	user, err := a.validateCredentials(login)
 	if err != nil {
-		statusCode := http.StatusInternalServerError
 		if err == errLoginUserNotFound {
-			statusCode = http.StatusUnauthorized
+			a.logrus.WithField("username", login.Username).Debug("Incorrect password given")
+			a.respondWithError(w, http.StatusUnauthorized, err.Error())
+		} else {
+			a.logrus.WithError(err).Error("Incorrect login details")
+			a.respondWithError(w, http.StatusInternalServerError, fmt.Sprintf("Error checking user credentials"))
 		}
-		a.respondWithError(w, statusCode, fmt.Sprintf("Error getting user: %s", err.Error()))
 		return
 	}
 	// Create the JSON token as the login is valid
@@ -53,7 +58,7 @@ func (a *app) loginPost(w http.ResponseWriter, r *http.Request) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	tokenString, err := token.SignedString([]byte(jwtSecret))
 	if err != nil {
-		a.respondWithError(w, http.StatusUnauthorized, "Unable to create JSON token")
+		a.respondWithError(w, http.StatusInternalServerError, "Unable to create JSON token")
 		return
 	}
 	a.respondWithJSON(w, http.StatusOK, map[string]string{"token": tokenString})
@@ -80,10 +85,16 @@ func (lr *loginRequest) validateRequest() error {
 }
 
 func (a *app) validateCredentials(lr loginRequest) (*user, error) {
-	// Need to hash password
-	user, err := a.getUserWithPassword(lr)
+	user, err := a.getUserWithUsername(lr.Username)
 	if err != nil {
 		return nil, err
+	}
+	// Make sure the password is valid
+	if err = bcrypt.CompareHashAndPassword([]byte(user.password), []byte(lr.Password)); err != nil {
+		if err != bcrypt.ErrMismatchedHashAndPassword {
+			return nil, fmt.Errorf("An error occurred checking the password")
+		}
+		return nil, errLoginUserNotFound
 	}
 	return user, nil
 }

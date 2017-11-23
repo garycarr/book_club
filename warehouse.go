@@ -36,26 +36,6 @@ func (a *app) createUser(rr registerRequest) (*user, error) {
 	}, nil
 }
 
-func (a *app) getUserWithPassword(lr loginRequest) (*user, error) {
-	db, err := a.openDB()
-	defer db.Close()
-	if err != nil {
-		return nil, err
-	}
-	u := user{}
-	sqlStatement := `SELECT id, email, username
-		FROM user_data
-		WHERE username = $1 AND password = $2`
-	err = db.QueryRow(sqlStatement, lr.Username, lr.Password).Scan(&u.id, &u.email, &u.username)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return nil, errLoginUserNotFound
-		}
-		return nil, err
-	}
-	return &u, nil
-}
-
 func (a *app) getUserWithUsername(username string) (*user, error) {
 	u := user{}
 	db, err := a.openDB()
@@ -63,10 +43,10 @@ func (a *app) getUserWithUsername(username string) (*user, error) {
 	if err != nil {
 		return nil, err
 	}
-	sqlStatement := `SELECT id, email, username
+	sqlStatement := `SELECT id, email, password, username
 		FROM user_data
 		WHERE username = $1`
-	err = db.QueryRow(sqlStatement, username).Scan(&u.id, &u.email, &u.username)
+	err = db.QueryRow(sqlStatement, username).Scan(&u.id, &u.email, &u.password, &u.username)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, errLoginUserNotFound
