@@ -8,19 +8,23 @@ import (
 	"time"
 
 	jwt "github.com/dgrijalva/jwt-go"
+	"github.com/garycarr/book_club/common"
+	"github.com/garycarr/book_club/warehouse"
 	"github.com/stretchr/testify/assert"
 )
 
 const (
+	validUserID          = "userID"
 	validUserDisplayName = "Gary"
 	validUserEmail       = "gcarr@example.com"
 	validUserPassword    = "password"
+	bcryptPassword       = "$2a$10$O02CA3UNrCC12JU66PIWvuI4oJceIUSB7Y/FX1x9ujzXsutCoeIMS"
 )
 
 func TestLoginPost(t *testing.T) {
 	type testData struct {
 		description        string
-		expectedClaims     customJWTClaims
+		expectedClaims     common.CustomJWTClaims
 		expectedError      error
 		expectedHTTPStatus int
 		params             map[string]string
@@ -29,10 +33,11 @@ func TestLoginPost(t *testing.T) {
 	testTable := []testData{
 		testData{
 			description: "Valid email and password",
-			expectedClaims: customJWTClaims{
+			expectedClaims: common.CustomJWTClaims{
 				StandardClaims: jwt.StandardClaims{
-					ExpiresAt: time.Now().Add(jwtExpiration).Unix(),
-					Issuer:    jwtIssuer,
+					ExpiresAt: time.Now().Add(common.JWTExpiration).Unix(),
+					Issuer:    common.JWTIssuer,
+					Id:        validUserID,
 				},
 				DisplayName: validUserDisplayName,
 			},
@@ -44,7 +49,7 @@ func TestLoginPost(t *testing.T) {
 		},
 		testData{
 			description:        "Wrong email",
-			expectedError:      errLoginUserNotFound,
+			expectedError:      common.ErrLoginUserNotFound,
 			expectedHTTPStatus: http.StatusUnauthorized,
 			params: map[string]string{
 				"email":    "invalidUserEmail",
@@ -54,7 +59,7 @@ func TestLoginPost(t *testing.T) {
 		testData{
 			description:        "Wrong password",
 			expectedHTTPStatus: http.StatusUnauthorized,
-			expectedError:      errLoginUserNotFound,
+			expectedError:      common.ErrLoginUserNotFound,
 			params: map[string]string{
 				"email":    validUserEmail,
 				"password": "invalidUserPassword",
@@ -63,7 +68,7 @@ func TestLoginPost(t *testing.T) {
 		testData{
 			description:        "Email not present",
 			expectedHTTPStatus: http.StatusBadRequest,
-			expectedError:      errLoginEmailNotPresent,
+			expectedError:      common.ErrLoginEmailNotPresent,
 			params: map[string]string{
 				"password": validUserEmail,
 			},
@@ -71,7 +76,7 @@ func TestLoginPost(t *testing.T) {
 		testData{
 			description:        "Password not present",
 			expectedHTTPStatus: http.StatusBadRequest,
-			expectedError:      errLoginPasswordNotPresent,
+			expectedError:      common.ErrLoginPasswordNotPresent,
 			params: map[string]string{
 				"email": validUserEmail,
 			},
@@ -79,7 +84,7 @@ func TestLoginPost(t *testing.T) {
 		testData{
 			description:        "No params passed in",
 			expectedHTTPStatus: http.StatusBadRequest,
-			expectedError:      errLoginEmailAndPasswordNotPresent,
+			expectedError:      common.ErrLoginEmailAndPasswordNotPresent,
 		},
 	}
 
@@ -93,32 +98,36 @@ func TestLoginPost(t *testing.T) {
 			t.Fatalf("Error creating new request for test %q: %v", td.description, err)
 		}
 		a, responseRecorder := setupTest(req)
+		mockWarehouse := warehouse.MockWarehouse{}
 		if td.expectedHTTPStatus == http.StatusOK {
-			// We need to put the user in the DB
-			createdUser := testCreateUser(t, a, user{
-				email:       td.params["email"],
-				password:    td.params["password"],
-				displayName: td.expectedClaims.DisplayName,
-			}, td.description)
-			td.expectedClaims.Id = createdUser.id
+			mockWarehouse.On("GetUserWithEmail", td.params["email"]).
+				Return(&common.User{
+					ID:          validUserID,
+					Email:       td.params["email"],
+					Password:    bcryptPassword,
+					DisplayName: td.expectedClaims.DisplayName,
+				}, nil)
+		} else if td.expectedHTTPStatus == http.StatusUnauthorized {
+			mockWarehouse.On("GetUserWithEmail", td.params["email"]).
+				Return(nil, common.ErrLoginUserNotFound)
 		}
+		a.warehouse = &mockWarehouse
+
 		a.Router.ServeHTTP(responseRecorder, req)
+		mockWarehouse.AssertExpectations(t)
 		if !assert.Equal(t, td.expectedHTTPStatus, responseRecorder.Code, td.description) {
 			// We got a different status code than expected
-			cleanUpUserData(t, a)
 			continue
 		}
 
 		jsonResp := map[string]string{}
 		if err = json.NewDecoder(responseRecorder.Body).Decode(&jsonResp); err != nil {
 			t.Errorf("Unable to decode JSON response for test %q: %v", td.description, err)
-			cleanUpUserData(t, a)
 			continue
 		}
-		// Check error message
 		if td.expectedHTTPStatus != http.StatusOK {
 			assert.Contains(t, jsonResp["error"], td.expectedError.Error(), td.description)
-			cleanUpUserData(t, a)
+			// We we were expecting an error there is nothing else to check
 			continue
 		}
 
@@ -126,15 +135,10 @@ func TestLoginPost(t *testing.T) {
 		tokenString, ok := jsonResp["token"]
 		if !ok {
 			t.Errorf("JWT not found for test %q: %v", td.description, jsonResp)
-			cleanUpUserData(t, a)
 			continue
 		}
-
 		if err = checkJWT(t, td.expectedClaims, tokenString, td.description); err != nil {
 			t.Error(err)
-			cleanUpUserData(t, a)
-			continue
 		}
-		cleanUpUserData(t, a)
 	}
 }

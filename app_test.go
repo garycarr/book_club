@@ -7,8 +7,8 @@ import (
 	"testing"
 
 	jwt "github.com/dgrijalva/jwt-go"
+	"github.com/garycarr/book_club/common"
 	"github.com/stretchr/testify/assert"
-	"golang.org/x/crypto/bcrypt"
 )
 
 func setupTest(req *http.Request) (*app, *httptest.ResponseRecorder) {
@@ -18,10 +18,10 @@ func setupTest(req *http.Request) (*app, *httptest.ResponseRecorder) {
 	return &a, rr
 }
 
-func checkJWT(t *testing.T, expectedClaims customJWTClaims, tokenString string, testDescription string) error {
-	claims := customJWTClaims{}
+func checkJWT(t *testing.T, expectedClaims common.CustomJWTClaims, tokenString string, testDescription string) error {
+	claims := common.CustomJWTClaims{}
 	_, err := jwt.ParseWithClaims(tokenString, &claims, func(token *jwt.Token) (interface{}, error) {
-		return []byte(jwtSecret), nil
+		return []byte(common.JWTSecret), nil
 	})
 	if err != nil {
 		return fmt.Errorf("Error parsing jwt for test %q: %v", testDescription, err)
@@ -40,24 +40,4 @@ func checkJWT(t *testing.T, expectedClaims customJWTClaims, tokenString string, 
 			testDescription, expectedClaims.ExpiresAt, claims.ExpiresAt)
 	}
 	return nil
-}
-
-func testCreateUser(t *testing.T, a *app, u user, testDescription string) *user {
-	// We need to put the user in the DB
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(u.password), bcryptCost)
-	if err != nil {
-		t.Fatalf("Could not create password for %q, err: %q", testDescription, err.Error())
-	}
-	createdUser, err := a.createUser(registerRequest{
-		Email:       u.email,
-		Password:    string(hashedPassword),
-		DisplayName: u.displayName,
-	})
-	if err != nil {
-		t.Fatalf("Error inserting into DB for %q: %q", testDescription, err.Error())
-	}
-
-	// For testing convenience return the hashedPassword
-	createdUser.password = string(hashedPassword)
-	return createdUser
 }

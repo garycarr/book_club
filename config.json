@@ -1,7 +1,8 @@
 {
+	"port": ":8080",
 	"database": {
 		"db_name": "bookclub",
-		"host": "localhost",
+		"host": "127.0.0.1",
 		"password": "password",
 		"username": "master"
 	}
