@@ -5,11 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"time"
 
-	jwt "github.com/dgrijalva/jwt-go"
-
-	"github.com/garycarr/book_club/common"
 	"github.com/garycarr/book_club/util"
 	"github.com/garycarr/book_club/warehouse"
 	"github.com/gorilla/mux"
@@ -27,6 +23,7 @@ type app struct {
 }
 
 type config struct {
+	Port     string `json:"port"`
 	Database struct {
 		DBName   string `json:"db_name"`
 		Host     string `json:"host"`
@@ -35,13 +32,8 @@ type config struct {
 	} `json:"database"`
 }
 
-type customJWTClaims struct {
-	DisplayName string `json:"displayName"`
-	jwt.StandardClaims
-}
-
 func (a *app) run() {
-	a.logrus.Fatal(http.ListenAndServe(port, a.Router))
+	a.logrus.Fatal(http.ListenAndServe(a.conf.Port, a.Router))
 }
 
 func (a *app) initialize(configFile string) {
@@ -96,23 +88,4 @@ func (a *app) loadConfiguration(file string) error {
 		return err
 	}
 	return nil
-}
-
-func (a *app) createJSONToken(u *common.User) (string, error) {
-	// Create the JSON token as the login is valid
-	claims := &customJWTClaims{
-		StandardClaims: jwt.StandardClaims{
-			ExpiresAt: time.Now().Add(jwtExpiration).Unix(),
-			Issuer:    jwtIssuer,
-			IssuedAt:  time.Now().Unix(),
-			Id:        u.ID,
-		},
-		DisplayName: u.DisplayName,
-	}
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	tokenString, err := token.SignedString([]byte(jwtSecret))
-	if err != nil {
-		return "", err
-	}
-	return tokenString, nil
 }

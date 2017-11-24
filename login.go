@@ -29,12 +29,12 @@ func (a *app) loginPost(w http.ResponseWriter, r *http.Request) {
 			a.respondWithError(w, http.StatusUnauthorized, err.Error())
 			return
 		}
-		a.logrus.WithError(err).Error("Incorrffffect login details")
+		a.logrus.WithError(err).Error("Incorrect login details")
 		a.respondWithError(w, http.StatusInternalServerError, fmt.Sprintf("Error checking user credentials"))
 		return
 	}
 	// Create the JSON token as the login is valid
-	jsonToken, err := a.createJSONToken(user)
+	jsonToken, err := common.CreateJSONToken(user)
 	if err != nil {
 		a.logrus.WithError(err).Error("Unable to create JSON token")
 		a.respondWithError(w, http.StatusInternalServerError, "Unable to create JSON token")
@@ -55,8 +55,7 @@ func (a *app) validateCredentials(lr common.LoginRequest) (*common.User, error) 
 	if err != nil {
 		return nil, err
 	}
-	// Make sure the password is valid
-	if err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(lr.Password)); err != nil {
+	if err = a.util.CheckHashedPassword(user.Password, lr.Password); err != nil {
 		if err != bcrypt.ErrMismatchedHashAndPassword {
 			return nil, fmt.Errorf("An error occurred checking the password: %s", err.Error())
 		}

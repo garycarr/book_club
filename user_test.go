@@ -18,7 +18,7 @@ import (
 func TestUserPost(t *testing.T) {
 	type testData struct {
 		description        string
-		expectedClaims     customJWTClaims
+		expectedClaims     common.CustomJWTClaims
 		expectedError      error
 		expectedHTTPStatus int
 		params             map[string]string
@@ -27,10 +27,10 @@ func TestUserPost(t *testing.T) {
 	testTable := []testData{
 		testData{
 			description: "Valid login request",
-			expectedClaims: customJWTClaims{
+			expectedClaims: common.CustomJWTClaims{
 				StandardClaims: jwt.StandardClaims{
-					ExpiresAt: time.Now().Add(jwtExpiration).Unix(),
-					Issuer:    jwtIssuer,
+					ExpiresAt: time.Now().Add(common.JWTExpiration).Unix(),
+					Issuer:    common.JWTIssuer,
 				},
 				DisplayName: "user1",
 			},
@@ -95,7 +95,7 @@ func TestUserPost(t *testing.T) {
 		mockUtil := util.MockUtil{}
 		mockWarehouse := warehouse.MockWarehouse{}
 		if td.expectedError == nil {
-			mockUtil.On("GetCryptedPassword", td.params["password"]).Return(bcryptPassword, nil)
+			mockUtil.On("CreateHashedPassword", td.params["password"]).Return(bcryptPassword, nil)
 			mockWarehouse.On("CreateUser", common.RegisterRequest{
 				DisplayName: td.params["displayName"],
 				Email:       td.params["email"],

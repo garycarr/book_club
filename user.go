@@ -21,7 +21,7 @@ func (a *app) userPost(w http.ResponseWriter, r *http.Request) {
 		a.respondWithError(w, http.StatusBadRequest, fmt.Sprintf("Missing parameters: %v", err))
 		return
 	}
-	hashedPassword, err := a.util.GetCryptedPassword(rr.Password)
+	hashedPassword, err := a.util.CreateHashedPassword(rr.Password)
 	if err != nil {
 		a.logrus.WithError(err).Error("Unable to hash password")
 		a.respondWithError(w, http.StatusInternalServerError, fmt.Sprintf("Unable to hash password"))
@@ -39,7 +39,7 @@ func (a *app) userPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// Create the JSON token as the login is valid
-	jsonToken, err := a.createJSONToken(user)
+	jsonToken, err := common.CreateJSONToken(user)
 	if err != nil {
 		a.logrus.WithError(err).Error("Unable to create JSON token")
 		a.respondWithError(w, http.StatusInternalServerError, "Unable to create JSON token")

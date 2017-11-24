@@ -36,6 +36,11 @@ func NewWarehouse(dbConnection string, logger *logrus.Logger) (*Warehouse, error
 	}, nil
 }
 
+// Close ..
+func (w *Warehouse) Close() {
+	w.DB.Close()
+}
+
 // CreateUser ...
 func (w *Warehouse) CreateUser(rr common.RegisterRequest) (*common.User, error) {
 	var id string

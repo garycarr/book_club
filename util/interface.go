@@ -1,6 +1,7 @@
 package util
 
-// UtilIn is an interface mainly for mocking
+// UtilIn is mainly for functions that need mocking
 type UtilIn interface {
-	GetCryptedPassword(string) (string, error)
+	CreateHashedPassword(string) (string, error)
+	CheckHashedPassword(string, string) error
 }

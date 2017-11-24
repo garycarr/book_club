@@ -24,3 +24,6 @@ func (mw *MockWarehouse) GetUserWithEmail(email string) (*common.User, error) {
 	}
 	return args.Get(0).(*common.User), args.Error(1)
 }
+
+// Close is used to assert the method is called
+func (mw *MockWarehouse) Close() {}

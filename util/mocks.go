@@ -9,8 +9,14 @@ type MockUtil struct {
 	mock.Mock
 }
 
-// GetCryptedPassword is used to assert the method is called
-func (mw *MockUtil) GetCryptedPassword(password string) (string, error) {
+// CreateHashedPassword is used to assert the method is called
+func (mw *MockUtil) CreateHashedPassword(password string) (string, error) {
 	args := mw.Called(password)
 	return args.Get(0).(string), args.Error(1)
+}
+
+// CheckHashedPassword is used to assert the method is called
+func (mw *MockUtil) CheckHashedPassword(dbPassword, givenPassword string) error {
+	args := mw.Called(dbPassword, givenPassword)
+	return args.Error(0)
 }

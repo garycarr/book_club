@@ -24,7 +24,7 @@ const (
 func TestLoginPost(t *testing.T) {
 	type testData struct {
 		description        string
-		expectedClaims     customJWTClaims
+		expectedClaims     common.CustomJWTClaims
 		expectedError      error
 		expectedHTTPStatus int
 		params             map[string]string
@@ -33,10 +33,10 @@ func TestLoginPost(t *testing.T) {
 	testTable := []testData{
 		testData{
 			description: "Valid email and password",
-			expectedClaims: customJWTClaims{
+			expectedClaims: common.CustomJWTClaims{
 				StandardClaims: jwt.StandardClaims{
-					ExpiresAt: time.Now().Add(jwtExpiration).Unix(),
-					Issuer:    jwtIssuer,
+					ExpiresAt: time.Now().Add(common.JWTExpiration).Unix(),
+					Issuer:    common.JWTIssuer,
 					Id:        validUserID,
 				},
 				DisplayName: validUserDisplayName,
@@ -125,9 +125,9 @@ func TestLoginPost(t *testing.T) {
 			t.Errorf("Unable to decode JSON response for test %q: %v", td.description, err)
 			continue
 		}
-		// Check error message
 		if td.expectedHTTPStatus != http.StatusOK {
 			assert.Contains(t, jsonResp["error"], td.expectedError.Error(), td.description)
+			// We we were expecting an error there is nothing else to check
 			continue
 		}
 
@@ -139,7 +139,6 @@ func TestLoginPost(t *testing.T) {
 		}
 		if err = checkJWT(t, td.expectedClaims, tokenString, td.description); err != nil {
 			t.Error(err)
-			continue
 		}
 	}
 }
