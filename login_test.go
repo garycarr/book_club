@@ -61,7 +61,7 @@ func TestLoginPost(t *testing.T) {
 			},
 		},
 		testData{
-			description:        "Username not present",
+			description:        "Email not present",
 			expectedHTTPStatus: http.StatusBadRequest,
 			expectedError:      errLoginEmailNotPresent,
 			params: map[string]string{
