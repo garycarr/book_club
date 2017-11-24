@@ -45,9 +45,7 @@ func (a *app) loginPost(w http.ResponseWriter, r *http.Request) {
 
 // loginOptions returns the allowed options
 func (a *app) loginOptions(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-	w.Header().Set("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept")
-	w.Header().Set("Access-Control-Allow-Methods", "POST")
+	a.optionsHeaders(w)
 }
 
 func (a *app) validateCredentials(lr common.LoginRequest) (*common.User, error) {

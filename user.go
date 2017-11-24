@@ -50,7 +50,5 @@ func (a *app) userPost(w http.ResponseWriter, r *http.Request) {
 
 // userOptions returns the allowed options
 func (a *app) userOptions(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-	w.Header().Set("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept")
-	w.Header().Set("Access-Control-Allow-Methods", "POST")
+	a.optionsHeaders(w)
 }
