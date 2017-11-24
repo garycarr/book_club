@@ -15,6 +15,7 @@ const jwtExpiration = time.Duration(1 * time.Hour)
 func main() {
 	a := app{}
 	a.initialize("config.json")
+	defer a.warehouse.DB.Close()
 	a.logrus.WithFields(logrus.Fields{
 		"dbHost":   a.conf.Database.Host,
 		"dbName":   a.conf.Database.DBName,

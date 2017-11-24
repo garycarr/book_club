@@ -87,6 +87,12 @@
 			"path": "golang.org/x/sys/windows",
 			"revision": "82aafbf43bf885069dc71b7e7c2f9d7a614d47da",
 			"revisionTime": "2017-11-21T20:10:17Z"
+		},
+		{
+			"checksumSHA1": "WfiM+grLatLDuXKj1roCcRDod/4=",
+			"path": "gopkg.in/DATA-DOG/go-sqlmock.v1",
+			"revision": "d76b18b42f285b792bf985118980ce9eacea9d10",
+			"revisionTime": "2017-09-01T07:34:10Z"
 		}
 	],
 	"rootPath": "github.com/garycarr/book_club"

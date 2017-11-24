@@ -5,37 +5,32 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/garycarr/book_club/common"
 	"golang.org/x/crypto/bcrypt"
 )
 
-// loginRequest is the data needed to make a login
-type loginRequest struct {
-	Email    string `json:"email"`
-	Password string `json:"password"`
-}
-
 // loginPost returns a JSON token if the login was successful
 func (a *app) loginPost(w http.ResponseWriter, r *http.Request) {
-	login := loginRequest{}
+	login := common.LoginRequest{}
 	if err := json.NewDecoder(r.Body).Decode(&login); err != nil {
 		a.logrus.WithError(err).Error("Unable to decode body")
 		a.respondWithError(w, http.StatusInternalServerError, fmt.Sprintf("Unable to decode request: %v", err))
 		return
 	}
-	if err := login.validateRequest(); err != nil {
+	if err := login.ValidateRequest(); err != nil {
 		a.logrus.WithError(err).Error("Missing validation parameters")
 		a.respondWithError(w, http.StatusBadRequest, fmt.Sprintf("Missing parameters: %v", err))
 		return
 	}
 	user, err := a.validateCredentials(login)
 	if err != nil {
-		if err == errLoginUserNotFound {
+		if err == common.ErrLoginUserNotFound {
 			a.logrus.Debug("Incorrect password given")
 			a.respondWithError(w, http.StatusUnauthorized, err.Error())
-		} else {
-			a.logrus.WithError(err).Error("Incorrect login details")
-			a.respondWithError(w, http.StatusInternalServerError, fmt.Sprintf("Error checking user credentials"))
+			return
 		}
+		a.logrus.WithError(err).Error("Incorrffffect login details")
+		a.respondWithError(w, http.StatusInternalServerError, fmt.Sprintf("Error checking user credentials"))
 		return
 	}
 	// Create the JSON token as the login is valid
@@ -55,30 +50,17 @@ func (a *app) loginOptions(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Methods", "POST")
 }
 
-func (lr *loginRequest) validateRequest() error {
-	if lr.Email == "" && lr.Password == "" {
-		return errLoginEmailAndPasswordNotPresent
-	}
-	if lr.Email == "" {
-		return errLoginEmailNotPresent
-	}
-	if lr.Password == "" {
-		return errLoginPasswordNotPresent
-	}
-	return nil
-}
-
-func (a *app) validateCredentials(lr loginRequest) (*user, error) {
-	user, err := a.getUserWithEmail(lr.Email)
+func (a *app) validateCredentials(lr common.LoginRequest) (*common.User, error) {
+	user, err := a.warehouse.GetUserWithEmail(lr.Email)
 	if err != nil {
 		return nil, err
 	}
 	// Make sure the password is valid
-	if err = bcrypt.CompareHashAndPassword([]byte(user.password), []byte(lr.Password)); err != nil {
+	if err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(lr.Password)); err != nil {
 		if err != bcrypt.ErrMismatchedHashAndPassword {
 			return nil, fmt.Errorf("An error occurred checking the password")
 		}
-		return nil, errLoginUserNotFound
+		return nil, common.ErrLoginUserNotFound
 	}
 	return user, nil
 }

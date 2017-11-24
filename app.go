@@ -1,7 +1,6 @@
 package main
 
 import (
-	"database/sql"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -9,15 +8,19 @@ import (
 	"time"
 
 	jwt "github.com/dgrijalva/jwt-go"
+	"github.com/garycarr/book_club/common"
+	"github.com/garycarr/book_club/warehouse"
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
 	"github.com/sirupsen/logrus"
 )
 
 type app struct {
-	Router *mux.Router
-	conf   *config
-	logrus *logrus.Logger
+	Router           *mux.Router
+	conf             *config
+	logrus           *logrus.Logger
+	warehouse        *warehouse.Warehouse
+	connectionString string
 }
 
 type config struct {
@@ -38,12 +41,6 @@ func (a *app) run() {
 	a.logrus.Fatal(http.ListenAndServe(port, a.Router))
 }
 
-func (a *app) openDB() (*sql.DB, error) {
-	connectionString := fmt.Sprintf("postgres://%s:%s@%s/%s?sslmode=disable",
-		a.conf.Database.Username, a.conf.Database.Password, a.conf.Database.Host, a.conf.Database.DBName)
-	return sql.Open("postgres", connectionString)
-}
-
 func (a *app) initialize(configFile string) {
 	a.logrus = logrus.New()
 	a.logrus.Formatter = &logrus.JSONFormatter{}
@@ -51,15 +48,14 @@ func (a *app) initialize(configFile string) {
 	if err != nil {
 		a.logrus.WithError(err).Fatal("Error loading config")
 	}
+	connectionString := fmt.Sprintf("postgres://%s:%s@%s/%s?sslmode=disable",
+		a.conf.Database.Username, a.conf.Database.Password, a.conf.Database.Host, a.conf.Database.DBName)
 
-	db, err := a.openDB()
-	defer db.Close()
+	warehouse, err := warehouse.NewWarehouse(connectionString, a.logrus)
 	if err != nil {
-		a.logrus.WithError(err).Fatal("Error opening DB")
+		a.logrus.WithError(err).Fatal("Error creating warehouse")
 	}
-	if err = db.Ping(); err != nil {
-		a.logrus.Fatal(err)
-	}
+	a.warehouse = warehouse
 	a.Router = mux.NewRouter()
 	a.initializeRoutes()
 }
@@ -98,16 +94,16 @@ func (a *app) loadConfiguration(file string) error {
 	return nil
 }
 
-func (a *app) createJSONToken(u *user) (string, error) {
+func (a *app) createJSONToken(u *common.User) (string, error) {
 	// Create the JSON token as the login is valid
 	claims := &customJWTClaims{
 		StandardClaims: jwt.StandardClaims{
 			ExpiresAt: time.Now().Add(jwtExpiration).Unix(),
 			Issuer:    jwtIssuer,
 			IssuedAt:  time.Now().Unix(),
-			Id:        u.id,
+			Id:        u.ID,
 		},
-		DisplayName: u.displayName,
+		DisplayName: u.DisplayName,
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	tokenString, err := token.SignedString([]byte(jwtSecret))
