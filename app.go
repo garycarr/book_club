@@ -30,7 +30,7 @@ type config struct {
 }
 
 type customJWTClaims struct {
-	Username string `json:"username"`
+	DisplayName string `json:"displayName"`
 	jwt.StandardClaims
 }
 
@@ -107,7 +107,7 @@ func (a *app) createJSONToken(u *user) (string, error) {
 			IssuedAt:  time.Now().Unix(),
 			Id:        u.id,
 		},
-		Username: u.username,
+		DisplayName: u.displayName,
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	tokenString, err := token.SignedString([]byte(jwtSecret))

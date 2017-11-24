@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"golang.org/x/crypto/bcrypt"
 )
 
 func cleanUpUserData(t *testing.T, a *app) {
@@ -32,13 +31,13 @@ func TestWarehouseCreateUser(t *testing.T) {
 			expectedError: nil,
 			expectedUser: user{
 				// id:       "", The ID is a UUID so we cannot know this until it is created
-				username: "gcarr",
-				email:    "email@example.com",
+				displayName: "gcarr",
+				email:       "email@example.com",
 			},
 			rr: registerRequest{
-				Password: "1234",
-				Username: "gcarr",
-				Email:    "email@example.com",
+				Password:    "1234",
+				DisplayName: "gcarr",
+				Email:       "email@example.com",
 			},
 		},
 	}
@@ -55,7 +54,7 @@ func TestWarehouseCreateUser(t *testing.T) {
 			continue
 		}
 		// Make sure the user was created
-		createdUser, err := a.getUserWithUsername(td.rr.Username)
+		createdUser, err := a.getUserWithEmail(td.rr.Email)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -72,9 +71,9 @@ func TestWarehouseCreateUserDuplicate(t *testing.T) {
 	}
 	defer cleanUpUserData(t, &a)
 	rr := registerRequest{
-		Password: "1234",
-		Username: "gcarr",
-		Email:    "email@example.com",
+		Password:    "1234",
+		DisplayName: "gcarr",
+		Email:       "email@example.com",
 	}
 	_, err := a.createUser(rr)
 	if !assert.Nil(t, err) {
@@ -86,30 +85,30 @@ func TestWarehouseCreateUserDuplicate(t *testing.T) {
 	assert.Equal(t, errLoginUserAlreadyExists, err)
 }
 
-func TestWarehouseGetUserWithUsername(t *testing.T) {
+func TestWarehouseGetUserWithEmail(t *testing.T) {
 	type testData struct {
 		description   string
 		expectedError error
 		expectedUser  user
-		username      string
+		email         string
 	}
 
 	testTable := []testData{
 		testData{
-			description:   "Valid username",
+			description:   "Valid email",
 			expectedError: nil,
 			expectedUser: user{
-				id:       "1234",
-				username: "gcarr",
-				email:    "email@example.com",
+				id:          "1234",
+				displayName: "gcarr",
+				email:       "email@example.com",
 			},
-			username: "gcarr",
+			email: "email@example.com",
 		},
 		testData{
-			description:   "Invalid password",
+			description:   "No email found",
 			expectedError: errLoginUserNotFound,
 			expectedUser:  user{},
-			username:      "invalidUser",
+			email:         "missing@email.com",
 		},
 	}
 	a := app{}
@@ -121,14 +120,14 @@ func TestWarehouseGetUserWithUsername(t *testing.T) {
 		if td.expectedError == nil {
 			// We need to put the user in the DB
 			createdUser := testCreateUser(t, &a, user{
-				email:    td.expectedUser.email,
-				password: "genericPassword",
-				username: td.username,
+				email:       td.expectedUser.email,
+				password:    "genericPassword",
+				displayName: td.expectedUser.displayName,
 			}, td.description)
 			td.expectedUser.id = createdUser.id
 			td.expectedUser.password = createdUser.password
 		}
-		user, err := a.getUserWithUsername(td.username)
+		user, err := a.getUserWithEmail(td.email)
 		if !assert.Equal(t, td.expectedError, err, td.description) {
 			cleanUpUserData(t, &a)
 			continue
@@ -142,24 +141,4 @@ func TestWarehouseGetUserWithUsername(t *testing.T) {
 		assert.Equal(t, &td.expectedUser, user, td.description)
 		cleanUpUserData(t, &a)
 	}
-}
-
-func testCreateUser(t *testing.T, a *app, u user, testDescription string) *user {
-	// We need to put the user in the DB
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(u.password), bcryptCost)
-	if err != nil {
-		t.Fatalf("Could not create password for %q, err: %q", testDescription, err.Error())
-	}
-	createdUser, err := a.createUser(registerRequest{
-		Email:    u.email,
-		Password: string(hashedPassword),
-		Username: u.username,
-	})
-	if err != nil {
-		t.Fatalf("Error inserting into DB for %q: %q", testDescription, err.Error())
-	}
-
-	// For testing convenience return the hashedPassword
-	createdUser.password = string(hashedPassword)
-	return createdUser
 }

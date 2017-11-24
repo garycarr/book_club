@@ -11,9 +11,9 @@ import (
 
 // registerRequest is the information needed to register a new user
 type registerRequest struct {
-	Username string `json:"username"`
-	Password string `json:"password"`
-	Email    string `json:"email"`
+	DisplayName string `json:"displayName"`
+	Password    string `json:"password"`
+	Email       string `json:"email"`
 }
 
 // loginPost returns a JSON token if the login was successful
@@ -40,11 +40,11 @@ func (a *app) userPost(w http.ResponseWriter, r *http.Request) {
 	user, err := a.createUser(rr)
 	if err != nil {
 		if err == errLoginUserAlreadyExists {
-			a.respondWithError(w, http.StatusBadRequest, fmt.Sprintf("User %s already exists", rr.Username))
+			a.respondWithError(w, http.StatusBadRequest, fmt.Sprintf("Email %s is already registered", rr.Email))
 			return
 		}
-		a.logrus.WithField("username", rr.Username).WithError(err).Error("Unable to create user")
-		a.respondWithError(w, http.StatusBadRequest, fmt.Sprintf("User %s already exists", rr.Username))
+		a.logrus.WithError(err).Error("Unable to create user")
+		a.respondWithError(w, http.StatusInternalServerError, "Error creating the user")
 		return
 	}
 
@@ -67,8 +67,8 @@ func (a *app) userOptions(w http.ResponseWriter, r *http.Request) {
 
 func (rr *registerRequest) validateNewUserRequest() error {
 	var missingFields string
-	if rr.Username == "" {
-		missingFields = "username,"
+	if rr.DisplayName == "" {
+		missingFields = "displayName,"
 	}
 	if rr.Password == "" {
 		if missingFields != "" {

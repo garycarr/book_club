@@ -10,7 +10,7 @@ import (
 
 // loginRequest is the data needed to make a login
 type loginRequest struct {
-	Username string `json:"username"`
+	Email    string `json:"email"`
 	Password string `json:"password"`
 }
 
@@ -30,7 +30,7 @@ func (a *app) loginPost(w http.ResponseWriter, r *http.Request) {
 	user, err := a.validateCredentials(login)
 	if err != nil {
 		if err == errLoginUserNotFound {
-			a.logrus.WithField("username", login.Username).Debug("Incorrect password given")
+			a.logrus.Debug("Incorrect password given")
 			a.respondWithError(w, http.StatusUnauthorized, err.Error())
 		} else {
 			a.logrus.WithError(err).Error("Incorrect login details")
@@ -56,11 +56,11 @@ func (a *app) loginOptions(w http.ResponseWriter, r *http.Request) {
 }
 
 func (lr *loginRequest) validateRequest() error {
-	if lr.Username == "" && lr.Password == "" {
-		return errLoginUsernameAndPasswordNotPresent
+	if lr.Email == "" && lr.Password == "" {
+		return errLoginEmailAndPasswordNotPresent
 	}
-	if lr.Username == "" {
-		return errLoginUsernameNotPresent
+	if lr.Email == "" {
+		return errLoginEmailNotPresent
 	}
 	if lr.Password == "" {
 		return errLoginPasswordNotPresent
@@ -69,7 +69,7 @@ func (lr *loginRequest) validateRequest() error {
 }
 
 func (a *app) validateCredentials(lr loginRequest) (*user, error) {
-	user, err := a.getUserWithUsername(lr.Username)
+	user, err := a.getUserWithEmail(lr.Email)
 	if err != nil {
 		return nil, err
 	}

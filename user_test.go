@@ -29,30 +29,30 @@ func TestUserPost(t *testing.T) {
 					ExpiresAt: time.Now().Add(jwtExpiration).Unix(),
 					Issuer:    jwtIssuer,
 				},
-				Username: "user1",
+				DisplayName: "user1",
 			},
 			expectedHTTPStatus: http.StatusCreated,
 			params: map[string]string{
-				"email":    "user1@example.com",
-				"username": "user1",
-				"password": "user1Pass",
+				"email":       "user1@example.com",
+				"displayName": "user1",
+				"password":    "user1Pass",
 			},
 		},
 		testData{
-			description: "Missing username",
+			description: "Missing displayName",
 			expectedClaims: customJWTClaims{
 				StandardClaims: jwt.StandardClaims{
 					ExpiresAt: time.Now().Add(jwtExpiration).Unix(),
 					Issuer:    jwtIssuer,
 				},
-				Username: "user1",
+				DisplayName: "user2",
 			},
-			expectedError:      fmt.Errorf("%s username", errNewUserMissingFields),
+			expectedError:      fmt.Errorf("%s displayName", errNewUserMissingFields),
 			expectedHTTPStatus: http.StatusBadRequest,
 			params: map[string]string{
-				"email": "user1@example.com",
-				// "username": "user1",
-				"password": "user1Pass",
+				"email": "user2@example.com",
+				// "displayName": "user2",
+				"password": "user2Pass",
 			},
 		},
 		testData{
@@ -62,14 +62,14 @@ func TestUserPost(t *testing.T) {
 					ExpiresAt: time.Now().Add(jwtExpiration).Unix(),
 					Issuer:    jwtIssuer,
 				},
-				Username: "user1",
+				DisplayName: "user3",
 			},
 			expectedError:      fmt.Errorf("%s email", errNewUserMissingFields),
 			expectedHTTPStatus: http.StatusBadRequest,
 			params: map[string]string{
-				// "email": "user1@example.com",
-				"username": "user1",
-				"password": "user1Pass",
+				// "email": "user3@example.com",
+				"displayName": "user3",
+				"password":    "user3Pass",
 			},
 		},
 		testData{
@@ -79,14 +79,14 @@ func TestUserPost(t *testing.T) {
 					ExpiresAt: time.Now().Add(jwtExpiration).Unix(),
 					Issuer:    jwtIssuer,
 				},
-				Username: "user1",
+				DisplayName: "user4",
 			},
 			expectedError:      fmt.Errorf("%s password", errNewUserMissingFields),
 			expectedHTTPStatus: http.StatusBadRequest,
 			params: map[string]string{
-				"email":    "user1@example.com",
-				"username": "user1",
-				// "password": "user1Pass",
+				"email":       "user4@example.com",
+				"displayName": "user4",
+				// "password": "user4Pass",
 			},
 		},
 		testData{
@@ -96,14 +96,14 @@ func TestUserPost(t *testing.T) {
 					ExpiresAt: time.Now().Add(jwtExpiration).Unix(),
 					Issuer:    jwtIssuer,
 				},
-				Username: "user1",
+				DisplayName: "user5",
 			},
-			expectedError:      fmt.Errorf("%s username, password, email", errNewUserMissingFields),
+			expectedError:      fmt.Errorf("%s displayName, password, email", errNewUserMissingFields),
 			expectedHTTPStatus: http.StatusBadRequest,
 			params:             map[string]string{
-			// "email": "user1@example.com",
-			// "username": "user1",
-			// "password": "user1Pass",
+			// "email": "user5@example.com",
+			// "displayName": "user5",
+			// "password": "user5Pass",
 			},
 		},
 	}
@@ -136,9 +136,10 @@ func TestUserPost(t *testing.T) {
 		}
 
 		// Get the created user so we can check the ID
-		createdUser, err := a.getUserWithUsername(td.params["username"])
+		createdUser, err := a.getUserWithEmail(td.params["email"])
 		if err != nil {
 			t.Errorf("Unable to get user for test %q: %v", td.description, err)
+			continue
 		}
 		td.expectedClaims.Id = createdUser.id
 

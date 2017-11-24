@@ -12,8 +12,9 @@ import (
 )
 
 const (
-	validUser     = "gcarr"
-	validPassword = "password"
+	validUserDisplayName = "Gary"
+	validUserEmail       = "gcarr@example.com"
+	validUserPassword    = "password"
 )
 
 func TestLoginPost(t *testing.T) {
@@ -27,27 +28,27 @@ func TestLoginPost(t *testing.T) {
 
 	testTable := []testData{
 		testData{
-			description: "Valid username and password",
+			description: "Valid email and password",
 			expectedClaims: customJWTClaims{
 				StandardClaims: jwt.StandardClaims{
 					ExpiresAt: time.Now().Add(jwtExpiration).Unix(),
 					Issuer:    jwtIssuer,
 				},
-				Username: validUser,
+				DisplayName: validUserDisplayName,
 			},
 			expectedHTTPStatus: http.StatusOK,
 			params: map[string]string{
-				"username": validUser,
-				"password": validPassword,
+				"email":    validUserEmail,
+				"password": validUserPassword,
 			},
 		},
 		testData{
-			description:        "Wrong username",
+			description:        "Wrong email",
 			expectedError:      errLoginUserNotFound,
 			expectedHTTPStatus: http.StatusUnauthorized,
 			params: map[string]string{
-				"username": "invalidUser",
-				"password": validPassword,
+				"email":    "invalidUserEmail",
+				"password": validUserPassword,
 			},
 		},
 		testData{
@@ -55,16 +56,16 @@ func TestLoginPost(t *testing.T) {
 			expectedHTTPStatus: http.StatusUnauthorized,
 			expectedError:      errLoginUserNotFound,
 			params: map[string]string{
-				"username": validUser,
-				"password": "invalidPassword",
+				"email":    validUserEmail,
+				"password": "invalidUserPassword",
 			},
 		},
 		testData{
 			description:        "Username not present",
 			expectedHTTPStatus: http.StatusBadRequest,
-			expectedError:      errLoginUsernameNotPresent,
+			expectedError:      errLoginEmailNotPresent,
 			params: map[string]string{
-				"password": validUser,
+				"password": validUserEmail,
 			},
 		},
 		testData{
@@ -72,13 +73,13 @@ func TestLoginPost(t *testing.T) {
 			expectedHTTPStatus: http.StatusBadRequest,
 			expectedError:      errLoginPasswordNotPresent,
 			params: map[string]string{
-				"username": validUser,
+				"email": validUserEmail,
 			},
 		},
 		testData{
 			description:        "No params passed in",
 			expectedHTTPStatus: http.StatusBadRequest,
-			expectedError:      errLoginUsernameAndPasswordNotPresent,
+			expectedError:      errLoginEmailAndPasswordNotPresent,
 		},
 	}
 
@@ -95,9 +96,9 @@ func TestLoginPost(t *testing.T) {
 		if td.expectedHTTPStatus == http.StatusOK {
 			// We need to put the user in the DB
 			createdUser := testCreateUser(t, a, user{
-				email:    "generic@email.com",
-				password: td.params["password"],
-				username: td.params["username"],
+				email:       td.params["email"],
+				password:    td.params["password"],
+				displayName: td.expectedClaims.DisplayName,
 			}, td.description)
 			td.expectedClaims.Id = createdUser.id
 		}

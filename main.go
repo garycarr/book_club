@@ -1,6 +1,10 @@
 package main
 
-import "time"
+import (
+	"time"
+
+	"github.com/sirupsen/logrus"
+)
 
 const bcryptCost = 10
 const jwtSecret = "Environmentalise"
@@ -11,6 +15,10 @@ const jwtExpiration = time.Duration(1 * time.Hour)
 func main() {
 	a := app{}
 	a.initialize("config.json")
-	a.logrus.Info("Starting the app")
+	a.logrus.WithFields(logrus.Fields{
+		"dbHost":   a.conf.Database.Host,
+		"dbName":   a.conf.Database.DBName,
+		"logLevel": a.logrus.Level,
+	}).Info("Starting the app")
 	a.run()
 }
