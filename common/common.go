@@ -5,6 +5,8 @@ import (
 	"strings"
 )
 
+const bcryptCost = 10
+
 // LoginRequest is the data needed to make a login
 type LoginRequest struct {
 	Email    string `json:"email"`

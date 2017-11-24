@@ -8,7 +8,9 @@ import (
 	"time"
 
 	jwt "github.com/dgrijalva/jwt-go"
+
 	"github.com/garycarr/book_club/common"
+	"github.com/garycarr/book_club/util"
 	"github.com/garycarr/book_club/warehouse"
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
@@ -16,11 +18,12 @@ import (
 )
 
 type app struct {
-	Router           *mux.Router
 	conf             *config
-	logrus           *logrus.Logger
-	warehouse        *warehouse.Warehouse
 	connectionString string
+	logrus           *logrus.Logger
+	util             util.UtilIn
+	Router           *mux.Router
+	warehouse        warehouse.WarehouseIn
 }
 
 type config struct {
@@ -51,11 +54,12 @@ func (a *app) initialize(configFile string) {
 	connectionString := fmt.Sprintf("postgres://%s:%s@%s/%s?sslmode=disable",
 		a.conf.Database.Username, a.conf.Database.Password, a.conf.Database.Host, a.conf.Database.DBName)
 
-	warehouse, err := warehouse.NewWarehouse(connectionString, a.logrus)
+	wh, err := warehouse.NewWarehouse(connectionString, a.logrus)
 	if err != nil {
 		a.logrus.WithError(err).Fatal("Error creating warehouse")
 	}
-	a.warehouse = warehouse
+	a.warehouse = wh
+	a.util = util.NewUtil()
 	a.Router = mux.NewRouter()
 	a.initializeRoutes()
 }

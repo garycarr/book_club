@@ -58,7 +58,7 @@ func (a *app) validateCredentials(lr common.LoginRequest) (*common.User, error) 
 	// Make sure the password is valid
 	if err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(lr.Password)); err != nil {
 		if err != bcrypt.ErrMismatchedHashAndPassword {
-			return nil, fmt.Errorf("An error occurred checking the password")
+			return nil, fmt.Errorf("An error occurred checking the password: %s", err.Error())
 		}
 		return nil, common.ErrLoginUserNotFound
 	}

@@ -10,6 +10,8 @@ import (
 
 	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/garycarr/book_club/common"
+	"github.com/garycarr/book_club/util"
+	"github.com/garycarr/book_club/warehouse"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -40,14 +42,7 @@ func TestUserPost(t *testing.T) {
 			},
 		},
 		testData{
-			description: "Missing displayName",
-			expectedClaims: customJWTClaims{
-				StandardClaims: jwt.StandardClaims{
-					ExpiresAt: time.Now().Add(jwtExpiration).Unix(),
-					Issuer:    jwtIssuer,
-				},
-				DisplayName: "user2",
-			},
+			description:        "Missing displayName",
 			expectedError:      fmt.Errorf("%s displayName", common.ErrNewUserMissingFields),
 			expectedHTTPStatus: http.StatusBadRequest,
 			params: map[string]string{
@@ -57,14 +52,7 @@ func TestUserPost(t *testing.T) {
 			},
 		},
 		testData{
-			description: "Missing email",
-			expectedClaims: customJWTClaims{
-				StandardClaims: jwt.StandardClaims{
-					ExpiresAt: time.Now().Add(jwtExpiration).Unix(),
-					Issuer:    jwtIssuer,
-				},
-				DisplayName: "user3",
-			},
+			description:        "Missing email",
 			expectedError:      fmt.Errorf("%s email", common.ErrNewUserMissingFields),
 			expectedHTTPStatus: http.StatusBadRequest,
 			params: map[string]string{
@@ -74,14 +62,7 @@ func TestUserPost(t *testing.T) {
 			},
 		},
 		testData{
-			description: "Missing password",
-			expectedClaims: customJWTClaims{
-				StandardClaims: jwt.StandardClaims{
-					ExpiresAt: time.Now().Add(jwtExpiration).Unix(),
-					Issuer:    jwtIssuer,
-				},
-				DisplayName: "user4",
-			},
+			description:        "Missing password",
 			expectedError:      fmt.Errorf("%s password", common.ErrNewUserMissingFields),
 			expectedHTTPStatus: http.StatusBadRequest,
 			params: map[string]string{
@@ -91,14 +72,7 @@ func TestUserPost(t *testing.T) {
 			},
 		},
 		testData{
-			description: "Missing everything",
-			expectedClaims: customJWTClaims{
-				StandardClaims: jwt.StandardClaims{
-					ExpiresAt: time.Now().Add(jwtExpiration).Unix(),
-					Issuer:    jwtIssuer,
-				},
-				DisplayName: "user5",
-			},
+			description:        "Missing everything",
 			expectedError:      fmt.Errorf("%s displayName, password, email", common.ErrNewUserMissingFields),
 			expectedHTTPStatus: http.StatusBadRequest,
 			params:             map[string]string{
@@ -118,8 +92,25 @@ func TestUserPost(t *testing.T) {
 			t.Fatalf("Error creating new request for test %q: %v", td.description, err)
 		}
 		a, responseRecorder := setupTest(req)
-		// defer cleanUpUserData(t, a)
+		mockUtil := util.MockUtil{}
+		mockWarehouse := warehouse.MockWarehouse{}
+		if td.expectedError == nil {
+			mockUtil.On("GetCryptedPassword", td.params["password"]).Return(bcryptPassword, nil)
+			mockWarehouse.On("CreateUser", common.RegisterRequest{
+				DisplayName: td.params["displayName"],
+				Email:       td.params["email"],
+				Password:    bcryptPassword,
+			}).Return(&common.User{
+				DisplayName: td.params["displayName"],
+				Email:       td.params["email"],
+			}, nil)
+		}
+		a.util = &mockUtil
+		a.warehouse = &mockWarehouse
+
 		a.Router.ServeHTTP(responseRecorder, req)
+		mockUtil.AssertExpectations(t)
+		mockWarehouse.AssertExpectations(t)
 		if !assert.Equal(t, td.expectedHTTPStatus, responseRecorder.Code, td.description) {
 			// We got a different status code than expected
 			continue
@@ -130,30 +121,22 @@ func TestUserPost(t *testing.T) {
 			t.Errorf("Unable to decode JSON response for test %q: %v", td.description, err)
 			continue
 		}
-		// Check error message
 		if td.expectedHTTPStatus != http.StatusCreated {
 			assert.Contains(t, jsonResp["error"], td.expectedError.Error(), td.description)
+			// We were expecting an error, so move onto the next test
 			continue
 		}
 
-		// // Get the created user so we can check the ID
-		// createdUser, err := a.getUserWithEmail(td.params["email"])
-		// if err != nil {
-		// 	t.Errorf("Unable to get user for test %q: %v", td.description, err)
-		// 	continue
-		// }
-		// td.expectedClaims.Id = createdUser.id
-		//
-		// // JWT tests
-		// tokenString, ok := jsonResp["token"]
-		// if !ok {
-		// 	t.Errorf("JWT not found for test %q: %v", td.description, jsonResp)
-		// 	continue
-		// }
-		//
-		// if err = checkJWT(t, td.expectedClaims, tokenString, td.description); err != nil {
-		// 	t.Error(err)
-		// 	continue
-		// }
+		// JWT tests
+		tokenString, ok := jsonResp["token"]
+		if !ok {
+			t.Errorf("JWT not found for test %q: %v", td.description, jsonResp)
+			continue
+		}
+
+		if err = checkJWT(t, td.expectedClaims, tokenString, td.description); err != nil {
+			t.Error(err)
+			continue
+		}
 	}
 }

@@ -6,7 +6,6 @@ import (
 	"net/http"
 
 	"github.com/garycarr/book_club/common"
-	"golang.org/x/crypto/bcrypt"
 )
 
 // loginPost returns a JSON token if the login was successful
@@ -22,11 +21,10 @@ func (a *app) userPost(w http.ResponseWriter, r *http.Request) {
 		a.respondWithError(w, http.StatusBadRequest, fmt.Sprintf("Missing parameters: %v", err))
 		return
 	}
-
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(rr.Password), bcryptCost)
+	hashedPassword, err := a.util.GetCryptedPassword(rr.Password)
 	if err != nil {
 		a.logrus.WithError(err).Error("Unable to hash password")
-		a.respondWithError(w, http.StatusInternalServerError, fmt.Sprintf("Unable to hash password: %v", err))
+		a.respondWithError(w, http.StatusInternalServerError, fmt.Sprintf("Unable to hash password"))
 		return
 	}
 	rr.Password = string(hashedPassword)
@@ -40,7 +38,6 @@ func (a *app) userPost(w http.ResponseWriter, r *http.Request) {
 		a.respondWithError(w, http.StatusInternalServerError, "Error creating the user")
 		return
 	}
-
 	// Create the JSON token as the login is valid
 	jsonToken, err := a.createJSONToken(user)
 	if err != nil {
