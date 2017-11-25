@@ -10,4 +10,6 @@ var (
 	ErrLoginUserNotFound               = errors.New("Email and password not found or incorrect")
 
 	ErrNewUserMissingFields = "Missing fields for new user:"
+
+	ErrJSONTokenNoBearer = errors.New("JSON Token does not have Bearer")
 )

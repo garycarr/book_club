@@ -28,6 +28,12 @@
 			"revisionTime": "2017-10-20T03:47:00Z"
 		},
 		{
+			"checksumSHA1": "OBvAHqWjdI4NQVAqTkcQAdTuCFY=",
+			"path": "github.com/justinas/alice",
+			"revision": "03f45bd4b7dad4734bc4620e46a35789349abb20",
+			"revisionTime": "2017-10-23T06:44:55Z"
+		},
+		{
 			"checksumSHA1": "IfZcD4U1dtllJKlPNeD2aU4Jn98=",
 			"path": "github.com/lib/pq",
 			"revision": "8c6ee72f3e6bcb1542298dd5f76cb74af9742cec",

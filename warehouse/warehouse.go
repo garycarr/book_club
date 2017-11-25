@@ -2,7 +2,6 @@ package warehouse
 
 import (
 	"database/sql"
-	"log"
 
 	"github.com/garycarr/book_club/common"
 	"github.com/lib/pq"
@@ -17,7 +16,6 @@ type Warehouse struct {
 
 // NewWarehouse ...
 func NewWarehouse(dbConnection string, logger *logrus.Logger) (*Warehouse, error) {
-	log.Println(dbConnection)
 	db, err := sql.Open("postgres", dbConnection)
 	defer func() {
 		if err != nil {

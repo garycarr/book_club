@@ -6,10 +6,50 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/garycarr/book_club/common"
+	"github.com/garycarr/book_club/util"
 	"github.com/stretchr/testify/assert"
 )
+
+type authTestData struct {
+	description        string
+	expectedHTTPStatus int
+	jwToken            string
+	validJWT           bool
+}
+
+func authJWTTestTable(t *testing.T) []authTestData {
+	util := util.NewUtil()
+	jwToken, err := util.CreateJSONToken(&common.User{
+		ID:          "123",
+		Email:       "email@example.com",
+		DisplayName: "JSmith",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	return []authTestData{
+		authTestData{
+			description:        "Valid JWT",
+			expectedHTTPStatus: http.StatusOK,
+			jwToken:            fmt.Sprintf("Bearer %s", jwToken),
+			validJWT:           true,
+		},
+		authTestData{
+			description:        "Invalid JWT",
+			expectedHTTPStatus: http.StatusUnauthorized,
+			jwToken:            fmt.Sprintf("%s", jwToken),
+			validJWT:           false,
+		},
+		authTestData{
+			description:        "No JWT",
+			expectedHTTPStatus: http.StatusUnauthorized,
+			jwToken:            "",
+			validJWT:           false,
+		},
+	}
+}
 
 func setupTest(req *http.Request) (*app, *httptest.ResponseRecorder) {
 	rr := httptest.NewRecorder()
@@ -18,26 +58,15 @@ func setupTest(req *http.Request) (*app, *httptest.ResponseRecorder) {
 	return &a, rr
 }
 
-func checkJWT(t *testing.T, expectedClaims common.CustomJWTClaims, tokenString string, testDescription string) error {
-	claims := common.CustomJWTClaims{}
-	_, err := jwt.ParseWithClaims(tokenString, &claims, func(token *jwt.Token) (interface{}, error) {
-		return []byte(common.JWTSecret), nil
-	})
-	if err != nil {
-		return fmt.Errorf("Error parsing jwt for test %q: %v", testDescription, err)
+func authEndpointTests(t *testing.T, path string) {
+	for _, td := range authJWTTestTable(t) {
+		req, err := http.NewRequest(http.MethodGet, path, nil)
+		if err != nil {
+			t.Fatalf("Error creating new request for test %q: %v", td.description, err)
+		}
+		req.Header.Add("Authorization", td.jwToken)
+		a, responseRecorder := setupTest(req)
+		a.Router.ServeHTTP(responseRecorder, req)
+		assert.Equal(t, td.expectedHTTPStatus, responseRecorder.Code, td.description)
 	}
-
-	assert.Equal(t, expectedClaims.Id, claims.Id, testDescription)
-	assert.Equal(t, expectedClaims.Issuer, claims.Issuer, testDescription)
-	assert.Equal(t, expectedClaims.DisplayName, claims.DisplayName, testDescription)
-	// Just make sure the expirationDate is within a minute of the expected
-	if claims.ExpiresAt > (expectedClaims.ExpiresAt + 60) {
-		t.Errorf("ExpiresAt was greater than expected range for %q, expected %d, got %d",
-			testDescription, expectedClaims.ExpiresAt, claims.ExpiresAt)
-	}
-	if claims.ExpiresAt < (expectedClaims.ExpiresAt - 60) {
-		t.Errorf("ExpiresAt was less than expected range for %q, expected %d, got %d",
-			testDescription, expectedClaims.ExpiresAt, claims.ExpiresAt)
-	}
-	return nil
 }
