@@ -5,10 +5,9 @@ import (
 	"encoding/json"
 	"net/http"
 	"testing"
-	"time"
 
-	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/garycarr/book_club/common"
+	"github.com/garycarr/book_club/util"
 	"github.com/garycarr/book_club/warehouse"
 	"github.com/stretchr/testify/assert"
 )
@@ -18,13 +17,11 @@ const (
 	validUserDisplayName = "Gary"
 	validUserEmail       = "gcarr@example.com"
 	validUserPassword    = "password"
-	bcryptPassword       = "$2a$10$O02CA3UNrCC12JU66PIWvuI4oJceIUSB7Y/FX1x9ujzXsutCoeIMS"
 )
 
 func TestLoginPost(t *testing.T) {
 	type testData struct {
 		description        string
-		expectedClaims     common.CustomJWTClaims
 		expectedError      error
 		expectedHTTPStatus int
 		params             map[string]string
@@ -32,15 +29,7 @@ func TestLoginPost(t *testing.T) {
 
 	testTable := []testData{
 		testData{
-			description: "Valid email and password",
-			expectedClaims: common.CustomJWTClaims{
-				StandardClaims: jwt.StandardClaims{
-					ExpiresAt: time.Now().Add(common.JWTExpiration).Unix(),
-					Issuer:    common.JWTIssuer,
-					Id:        validUserID,
-				},
-				DisplayName: validUserDisplayName,
-			},
+			description:        "Valid email and password",
 			expectedHTTPStatus: http.StatusOK,
 			params: map[string]string{
 				"email":    validUserEmail,
@@ -87,7 +76,7 @@ func TestLoginPost(t *testing.T) {
 			expectedError:      common.ErrLoginEmailAndPasswordNotPresent,
 		},
 	}
-
+	jwt := "Bearer JWT"
 	for _, td := range testTable {
 		params, err := json.Marshal(td.params)
 		if err != nil {
@@ -99,22 +88,30 @@ func TestLoginPost(t *testing.T) {
 		}
 		a, responseRecorder := setupTest(req)
 		mockWarehouse := warehouse.MockWarehouse{}
+		mockUtil := util.MockUtil{}
 		if td.expectedHTTPStatus == http.StatusOK {
+			user := &common.User{
+				ID:       validUserID,
+				Email:    td.params["email"],
+				Password: td.params["password"], // this would normally be bcrypted from the DB
+				// As we are mocking everything it doesn't matter
+				DisplayName: "JSmith",
+			}
 			mockWarehouse.On("GetUserWithEmail", td.params["email"]).
-				Return(&common.User{
-					ID:          validUserID,
-					Email:       td.params["email"],
-					Password:    bcryptPassword,
-					DisplayName: td.expectedClaims.DisplayName,
-				}, nil)
+				Return(user, nil)
+			mockUtil.On("CheckHashedPassword", user.Password, td.params["password"]).Return(nil)
+			mockUtil.On("CreateJSONToken", user).Return(jwt, nil)
 		} else if td.expectedHTTPStatus == http.StatusUnauthorized {
 			mockWarehouse.On("GetUserWithEmail", td.params["email"]).
 				Return(nil, common.ErrLoginUserNotFound)
 		}
 		a.warehouse = &mockWarehouse
+		a.util = &mockUtil
 
 		a.Router.ServeHTTP(responseRecorder, req)
 		mockWarehouse.AssertExpectations(t)
+		mockUtil.AssertExpectations(t)
+
 		if !assert.Equal(t, td.expectedHTTPStatus, responseRecorder.Code, td.description) {
 			// We got a different status code than expected
 			continue
@@ -131,14 +128,12 @@ func TestLoginPost(t *testing.T) {
 			continue
 		}
 
-		// JWT tests
+		// The JWT has it's own tests, just make sure it got returned
 		tokenString, ok := jsonResp["token"]
 		if !ok {
 			t.Errorf("JWT not found for test %q: %v", td.description, jsonResp)
 			continue
 		}
-		if err = checkJWT(t, td.expectedClaims, tokenString, td.description); err != nil {
-			t.Error(err)
-		}
+		assert.Equal(t, jwt, tokenString, td.description)
 	}
 }

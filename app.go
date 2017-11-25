@@ -9,6 +9,7 @@ import (
 	"github.com/garycarr/book_club/util"
 	"github.com/garycarr/book_club/warehouse"
 	"github.com/gorilla/mux"
+	"github.com/justinas/alice"
 	_ "github.com/lib/pq"
 	"github.com/sirupsen/logrus"
 )
@@ -57,15 +58,31 @@ func (a *app) initialize(configFile string) {
 }
 
 func (a *app) initializeRoutes() {
-	a.Router.HandleFunc("/login", a.loginPost).Methods("POST")
-	a.Router.HandleFunc("/login", a.loginOptions).Methods("OPTIONS")
+	a.Router.HandleFunc("/login", a.loginPost).Methods(http.MethodPost)
+	a.Router.HandleFunc("/login", a.loginOptions).Methods(http.MethodOptions)
 
-	a.Router.HandleFunc("/user", a.userPost).Methods("POST")
-	a.Router.HandleFunc("/user", a.userOptions).Methods("OPTIONS")
+	a.Router.HandleFunc("/user", a.userPost).Methods(http.MethodPost)
+	a.Router.HandleFunc("/user", a.userOptions).Methods(http.MethodOptions)
+
+	authMiddleware := alice.New(a.authMiddleware)
+	a.Router.Handle("/homepage", authMiddleware.ThenFunc(a.homePageGet)).Methods(http.MethodGet)
+	a.Router.Handle("/homepage", authMiddleware.ThenFunc(a.homePageOptions)).Methods(http.MethodOptions)
 }
 
 func (a *app) respondWithError(w http.ResponseWriter, code int, message string) {
 	a.respondWithJSON(w, code, map[string]string{"error": message})
+}
+
+func (a *app) authMiddleware(next http.Handler) http.Handler {
+	fn := func(w http.ResponseWriter, r *http.Request) {
+		if err := a.util.CheckJSONToken(r.Header.Get("Authorization")); err != nil {
+			a.logrus.WithError(err).Debug("Ivalid JSON token. Redirecting user to homepage")
+			http.Redirect(w, r, "/login", http.StatusUnauthorized)
+			return
+		}
+		next.ServeHTTP(w, r)
+	}
+	return http.HandlerFunc(fn)
 }
 
 func (a *app) respondWithJSON(w http.ResponseWriter, code int, payload interface{}) {
